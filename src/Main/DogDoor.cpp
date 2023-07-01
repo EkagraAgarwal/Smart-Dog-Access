@@ -29,13 +29,16 @@ void DogDoorSetup() {
   delay(100);         // Allow time for initialization
   rfid.PCD_DumpVersionToSerial();  // Print MFRC522 library version to serial monitor
   Serial.println("Dog door system ready!");
+
+  // Sort authorizedTags using bubble sort
+  BubbleSort(authorizedTags, numAuthorizedTags);
 }
 
 void DogDoorLoop() {
   // Check for a new RFID tag
   if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
-    // Verify if the tag is authorized
-    if (IsTagAuthorized(rfid.uid.uidByte, rfid.uid.size)) {
+    // Verify if the tag is authorized using binary search
+    if (BinarySearch(authorizedTags, numAuthorizedTags, rfid.uid.uidByte, rfid.uid.size)) {
       Serial.println("Access granted!");
       OpenDoor();
     } else {
@@ -46,14 +49,34 @@ void DogDoorLoop() {
   }
 }
 
-bool IsTagAuthorized(byte* tagData, byte dataSize) {
-  // Compare the received tag with authorized tags
-  for (int i = 0; i < numAuthorizedTags; i++) {
-    if (memcmp(tagData, authorizedTags[i], dataSize) == 0) {
+bool BinarySearch(byte arr[][6], int size, byte* key, byte keySize) {
+  int left = 0;
+  int right = size - 1;
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (memcmp(arr[mid], key, keySize) == 0) {
       return true;
+    }
+    if (memcmp(arr[mid], key, keySize) < 0) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
     }
   }
   return false;
+}
+
+void BubbleSort(byte arr[][6], int size) {
+  for (int i = 0; i < size - 1; i++) {
+    for (int j = 0; j < size - i - 1; j++) {
+      if (memcmp(arr[j], arr[j + 1], 6) > 0) {
+        byte temp[6];
+        memcpy(temp, arr[j], 6);
+        memcpy(arr[j], arr[j + 1], 6);
+        memcpy(arr[j + 1], temp, 6);
+      }
+    }
+  }
 }
 
 void OpenDoor() {
